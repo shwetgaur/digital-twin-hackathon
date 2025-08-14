@@ -1,53 +1,48 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
+import { OrbitControls, Text, Environment } from '@react-three/drei';
 
+// A reusable component for our buildings
 function Building({ data, position }) {
   const color = data.attributes.has_solar ? 'gold' : 'royalblue';
   return (
-    <mesh position={position}>
-      <boxGeometry args={[2, 4, 2]} />
-      <meshStandardMaterial color={color} />
-      <Text position={[0, 2.5, 0]} fontSize={0.5} color="white" anchorX="center">
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={[2, 4, 2]} />
+        <meshStandardMaterial color={color} roughness={0.5} metalness={0.5} />
+      </mesh>
+      <Text position={[0, 2.5, 0]} fontSize={0.4} color="white" anchorX="center">
         {data.id}
       </Text>
-    </mesh>
+    </group>
   );
 }
 
+// A reusable component for our roads
 function Road({ data, position }) {
   const color = data.attributes.is_bike_lane ? 'lightskyblue' : '#444';
   return (
-    <mesh position={position}>
-      <boxGeometry args={[2, 0.2, 5]} />
-      <meshStandardMaterial color={color} />
-       <Text position={[0, 0.5, 0]} fontSize={0.5} color="white" anchorX="center">
-        {data.id}
-      </Text>
-    </mesh>
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={[2, 0.2, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+    </group>
   );
 }
 
 function Scene({ cityData }) {
-  useEffect(() => {
-    console.log("Scene detected a change in cityData:", cityData);
-  }, [cityData]);
-
   return (
-    <Canvas camera={{ position: [10, 15, 15], fov: 60 }}>
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[20, 30, 10]} intensity={1.5} />
+    <Canvas camera={{ position: [0, 15, 20], fov: 60 }}>
+      <Environment preset="city" />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 20, 5]} intensity={1} />
       <OrbitControls />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
-          <planeGeometry args={[100, 100]} />
-          <meshStandardMaterial color="#555" />
-      </mesh>
-
       {cityData.elements.map((element, index) => {
-        const position = [index * 4 - 6, 0, 0];
+        const position = [index * 4 - (cityData.elements.length * 2), 2, 0];
         if (element.type === 'building') {
-          return <Building key={element.id} data={element} position={[...position, 0]} />;
+          return <Building key={element.id} data={element} position={position} />;
         }
         if (element.type === 'road') {
           return <Road key={element.id} data={element} position={[...position, 5]} />;
