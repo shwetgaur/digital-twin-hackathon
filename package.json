@@ -10,10 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@react-three/drei": "^10.6.1",
     "@react-three/fiber": "^9.3.0",
+    "@turf/turf": "^7.2.0",
     "d3-geo": "^3.1.1",
     "leaflet": "^1.9.4",
+    "mapbox-gl-draw-rectangle-mode": "^1.0.4",
     "maplibre-gl": "^2.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

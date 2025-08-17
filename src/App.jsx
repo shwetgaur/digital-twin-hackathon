@@ -1,303 +1,302 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Map from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
-import { getAIDecision } from './lib/watsonx.js';
-import { applyIntervention } from './lib/simulation.js';
 
-// --- MapComponent: Renders the interactive map ---
-const MapComponent = ({ setCurrentArea, onMapReady, onMapClick }) => {
-  const MAPTILER_API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
-  const mapStyleUrl = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${MAPTILER_API_KEY}`;
+// Import Mapbox Draw for the drawing tools
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 
-  const onMapLoad = (evt) => {
-    const map = evt.target;
-    if (onMapReady) {
-      onMapReady(map);
-    }
+import { useMapSetup } from './hooks/useMapSetup';
+import { useMapInteractions } from './hooks/useMapInteractions';
+import { useSearch } from './hooks/useSearch';
+import { useAIAnalysis } from './hooks/useAIAnalysis';
+import { useCarbonScore } from './hooks/useCarbonScore';
 
-    const initialCenter = map.getCenter();
-    fetchAreaName(initialCenter.lng, initialCenter.lat);
-
-    map.on('moveend', () => {
-      const { lng, lat } = map.getCenter();
-      fetchAreaName(lng, lat);
-    });
-
-    const setupLayers = () => {
-      if (map.getSource('analysis-zone-source')) return; // Layers already added
-
-      map.setLight({ anchor: 'viewport', color: '#ffffff', intensity: 0.5 });
-      
-      // Add 3D buildings layer
-      map.addLayer({
-        id: '3d-buildings',
-        type: 'fill-extrusion',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 14,
-        paint: {
-          'fill-extrusion-color': '#2D9CDB',
-          'fill-extrusion-height': ['*', ['coalesce', ['get', 'render_height'], 10], 4],
-          'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-          'fill-extrusion-opacity': 0.8,
-        },
-      });
-
-      // Add source and layer for the user's selection box
-      map.addSource('analysis-zone-source', { type: 'geojson', data: null });
-      map.addLayer({
-        id: 'analysis-zone-layer',
-        type: 'fill',
-        source: 'analysis-zone-source',
-        paint: { 'fill-color': '#007bff', 'fill-opacity': 0.2, 'fill-outline-color': '#007bff' },
-      });
-    };
-    
-    if (map.isStyleLoaded()) {
-      setupLayers();
-    } else {
-      map.on('styledata', setupLayers);
-    }
-  };
-  
-  const fetchAreaName = async (lng, lat) => {
-    try {
-      const res = await fetch(`https://api.maptiler.com/geocoding/${lng},${lat}.json?key=${MAPTILER_API_KEY}`);
-      const data = await res.json();
-      if (data?.features?.length) {
-        const f = data.features.find(x => x.place_type.includes('neighbourhood')) || data.features.find(x => x.place_type.includes('locality')) || data.features[0];
-        setCurrentArea(f.text || f.place_name || '—');
-      }
-    } catch (e) {
-      console.error('Area name error:', e);
-    }
-  };
-
-  return (
-    <Map
-      mapLib={maplibregl}
-      initialViewState={{ longitude: 73.8567, latitude: 18.5204, zoom: 15, pitch: 60, bearing: -20 }}
-      style={{ width: '100%', height: '100%' }}
-      mapStyle={mapStyleUrl}
-      onLoad={onMapLoad}
-      onClick={onMapClick}
-      antialias
-    />
-  );
-};
-
-// --- Main App Component ---
 function App() {
   const [map, setMap] = useState(null);
+  const [draw, setDraw] = useState(null);
   const [currentArea, setCurrentArea] = useState('Loading…');
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const [carbonScore, setCarbonScore] = useState(0);
-  const [aiLog, setAiLog] = useState("Click on the map to select a block to analyze.");
+  const [aiLog, setAiLog] = useState("Click 'Select Area' to draw a zone, or click on the map for a default block.");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [analysisZone, setAnalysisZone] = useState(null);
+  const [isLogVisible, setIsLogVisible] = useState(false);
+  const [isSelectAreaExpanded, setIsSelectAreaExpanded] = useState(false);
+  const [polygonCount, setPolygonCount] = useState(0);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+
   const MAPTILER_API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
 
+  const { onMapLoad } = useMapSetup(MAPTILER_API_KEY, setCurrentArea);
+  const { handleMapClick, goToCoords, enterSelectionMode } = useMapInteractions(
+    map,
+    setAnalysisZone,
+    setAiLog
+  );
+  const {
+    searchTerm,
+    suggestions,
+    activeIndex,
+    suggestionsRef,
+    showSuggestions,
+    handleChange,
+    handleKeyDown,
+    selectPlace,
+    handleGoClick,
+  } = useSearch(({ lat, lon, name }) => {
+    goToCoords(lon, lat);
+    console.log("Selected location:", name);
+  });
+  const { handleAnalyzeArea } = useAIAnalysis(
+    map,
+    currentArea,
+    analysisZone,
+    setCarbonScore,
+    setAiLog,
+    setIsLoadingAI
+  );
+  const { CarbonScorePanel } = useCarbonScore(carbonScore);
+
+  // Effect to initialize and manage the drawing tool
   useEffect(() => {
-    if (map && analysisZone) {
-      const source = map.getSource('analysis-zone-source');
-      if (source) {
-        source.setData(analysisZone);
-      }
-    }
-  }, [analysisZone, map]);
+    if (map && !draw) {
+      const drawInstance = new MapboxDraw({
+        displayControlsDefault: false, // We use our own custom controls
+        // Custom styles for drawn polygons
+        styles: [
+          // INACTIVE (default) state - Almost opaque dark blue
+          {
+            'id': 'gl-draw-polygon-fill-inactive',
+            'type': 'fill',
+            'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+            'paint': {
+              'fill-color': 'rgba(0, 0, 139, 0.8)', // Dark Blue with high opacity
+              'fill-outline-color': '#00008B',
+            }
+          },
+           // ACTIVE (being drawn or edited) state - Darker translucent orange
+          {
+            'id': 'gl-draw-polygon-fill-active',
+            'type': 'fill',
+            'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
+            'paint': {
+              'fill-color': 'rgba(204, 102, 0, 0.6)', // Darker translucent orange
+              'fill-outline-color': '#CC6600',
+            }
+          },
+          // Polygon stroke
+          {
+            'id': 'gl-draw-polygon-stroke-active',
+            'type': 'line',
+            'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
+            'layout': { 'line-cap': 'round', 'line-join': 'round' },
+            'paint': { 'line-color': '#CC6600', 'line-width': 2 }
+          },
+        ]
+      });
+      map.addControl(drawInstance, 'top-right');
+      setDraw(drawInstance);
 
-  const handleMapClick = (evt) => {
-    const { lng, lat } = evt.lngLat;
-    const size = 0.0005; // A smaller, more precise block size
-    const square = {
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [lng - size, lat - size], [lng + size, lat - size],
-          [lng + size, lat + size], [lng - size, lat + size],
-          [lng - size, lat - size]
-        ]]
-      }
-    };
-    setAnalysisZone(square);
-    setAiLog("Analysis zone selected. Click 'Analyze & Optimize Area' to proceed.");
-    // Reset building colors when a new zone is selected
-    if (map) {
-        map.setPaintProperty('3d-buildings', 'fill-extrusion-color', '#2D9CDB');
-    }
-  };
-
-  const handleAnalyzeArea = async () => {
-    if (!map || !analysisZone) {
-      setAiLog("Please click on the map to select an area to analyze first.");
-      return;
-    }
-    setIsLoadingAI(true);
-    setAiLog("Analyzing buildings in the selected zone...");
-
-    const features = map.querySourceFeatures('openmaptiles', {
-      sourceLayer: 'building',
-      filter: ['within', analysisZone.geometry]
-    });
-
-    if (features.length === 0) {
-      setAiLog("No buildings found in the selected zone. Try zooming in further or selecting a different area.");
-      setIsLoadingAI(false);
-      return;
-    }
-    
-    let initialCarbon = 0;
-    const cityElements = features.map((feature, index) => {
-      const buildingHeight = feature.properties.render_height || 20;
-      const carbonOutput = buildingHeight * 50;
-      initialCarbon += carbonOutput;
-      feature.id = feature.properties.id || index + 1; // Use real ID if available, otherwise assign temporary one
-      return {
-        id: feature.id, type: 'building', carbon_output: carbonOutput,
-        attributes: { has_solar: false }
+      // Listen to draw events to update the analysis zone
+      const updateArea = (e) => {
+        const data = drawInstance.getAll();
+        setPolygonCount(data.features.length);
+        if (data.features.length > 0) {
+          // Use the last drawn feature as the analysis zone
+          setAnalysisZone(data.features[data.features.length - 1]);
+           setAiLog("Custom area selected. Ready to analyze.");
+        } else {
+          setAnalysisZone(null);
+        }
       };
-    });
 
-    const cityDataForAI = {
-      city_block_id: currentArea, current_total_carbon: initialCarbon,
-      elements: cityElements
+      map.on('draw.create', updateArea);
+      map.on('draw.delete', updateArea);
+      map.on('draw.update', updateArea);
+    }
+    // Cleanup function to remove the control when the component unmounts
+    return () => {
+      if (map && draw) {
+        map.removeControl(draw);
+      }
     };
-    
-    setCarbonScore(initialCarbon);
-    setAiLog("Data sent to WatsonX AI for optimization...");
+  }, [map, draw]);
+  
+  // Centralized map click handler
+  const onMapClick = (e) => {
+    // If in delete mode, attempt to delete a feature
+    if (isDeleteMode && draw) {
+      const featureIds = draw.getFeatureIdsAt(e.point);
+      if (featureIds.length > 0) {
+        draw.delete(featureIds); // Delete the clicked feature(s)
+      }
+      setIsDeleteMode(false); // Always exit delete mode after a click
+      return; // Stop further actions
+    }
 
-    const decision = await getAIDecision(cityDataForAI);
-
-    if (decision && decision.action) {
-      setAiLog(`AI decided to: ${decision.action} on building ID ${decision.target_id}.`);
-      const newCityState = applyIntervention(cityDataForAI, decision);
-      setCarbonScore(newCityState.current_total_carbon);
-      
-      map.setPaintProperty('3d-buildings', 'fill-extrusion-color', [
-        'case',
-        ['==', ['id'], decision.target_id], '#FFD700', // Gold
-        '#2D9CDB' // Default Blue
-      ]);
-
-    } else {
-      setAiLog("Error contacting AI. Check console (F12) for details.");
+    // If the draw panel is open or drawing is active, do nothing (let mapbox-gl-draw handle it)
+    if (isSelectAreaExpanded || (draw && draw.getMode() !== 'simple_select')) {
+      return;
     }
     
-    setIsLoadingAI(false);
+    // Otherwise, perform the default action of creating a small square
+    handleMapClick(e);
   };
 
-  const goToCoords = (lng, lat) => {
-    if (!map) return;
-    setSuggestions([]);
-    setActiveIndex(-1);
-    map.flyTo({ center: [lng, lat], zoom: 17, pitch: 60, duration: 5000 });
+
+  const handleAnalysisButtonClick = () => {
+    handleAnalyzeArea();
+    setIsLogVisible(true);
+    setIsSelectAreaExpanded(false); // Collapse the selection panel after analyzing
+  };
+
+  const handleSelectAreaClick = () => {
+    const willExpand = !isSelectAreaExpanded;
+    setIsSelectAreaExpanded(willExpand);
+    if (willExpand) {
+      enterSelectionMode(); // Pan camera to top-down view
+    } else {
+        setIsDeleteMode(false); // Ensure delete mode is off when collapsing
+    }
+    setIsLogVisible(false); // Hide the log when opening the selection panel
   };
   
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (activeIndex >= 0 && suggestions[activeIndex]) {
-      setQuery(suggestions[activeIndex].name);
-      const [lng, lat] = suggestions[activeIndex].center;
-      goToCoords(lng, lat);
-      return;
-    }
-    if (!query.trim()) return;
-    try {
-      const res = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAPTILER_API_KEY}&types=place,locality,neighbourhood&language=en`);
-      const data = await res.json();
-      if (data?.features?.length) {
-        setQuery(data.features[0].place_name);
-        const [lng, lat] = data.features[0].center;
-        goToCoords(lng, lat);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
+  const setDrawMode = (mode) => {
+    if (draw) {
+      draw.changeMode(mode);
     }
   };
 
-  const onChangeQuery = async (val) => {
-    setQuery(val);
-    setActiveIndex(-1);
-    if (!val.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    try {
-      const res = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(val)}.json?key=${MAPTILER_API_KEY}&autocomplete=true&types=place,locality,neighbourhood&language=en`);
-      const data = await res.json();
-      setSuggestions((data?.features || []).map((f) => ({ name: f.place_name || f.text, center: f.center })));
-    } catch (err) {
-      console.error('Suggest error:', err);
+  const clearAllShapes = () => {
+    if (draw) {
+      draw.deleteAll();
+      setAnalysisZone(null);
     }
   };
+  
+  const toggleDeleteMode = () => {
+    setIsDeleteMode(prev => !prev);
+  };
 
-  const onKeyDown = (e) => {
-    if (!suggestions.length) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex((i) => Math.max(i - 1, 0));
+  const deleteSinglePolygon = () => {
+    if (draw && polygonCount > 0) {
+        const data = draw.getAll();
+        if(data.features.length > 0) {
+            draw.delete(data.features[0].id);
+        }
     }
   };
 
   return (
     <div className="App">
-      <header className="hud">
-        <div className="title">Pune Digital Twin</div>
-        <div className="subtitle">Exploring: {currentArea}</div>
-        <form className="search-container" onSubmit={handleSubmit}>
-          <input
-            className="search-input" type="text" placeholder="Search area…"
-            value={query} onChange={(e) => onChangeQuery(e.target.value)}
-            onKeyDown={onKeyDown} autoComplete="off"
-          />
-          <button type="submit" className="go-button">Go</button>
-          {suggestions.length > 0 && (
-            <ul className="suggestions" role="listbox">
-              {suggestions.map((s, idx) => (
-                <li
-                  key={`${s.name}-${idx}`} role="option"
-                  aria-selected={idx === activeIndex}
-                  className={`suggestion${idx === activeIndex ? ' active' : ''}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setQuery(s.name);
-                    const [lng, lat] = s.center;
-                    goToCoords(lng, lat);
-                  }}
-                >
-                  {s.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </form>
-        <div className="ai-panel">
-          <div className="score-card">
-            <h3>Area Carbon Score</h3>
-            <p className="score">{Math.round(carbonScore)}</p>
-          </div>
-          <button onClick={handleAnalyzeArea} disabled={isLoadingAI} className="analyze-button">
-            {isLoadingAI ? 'Analyzing...' : 'Analyze & Optimize Area'}
-          </button>
-          <div className="log-panel">
-            <h4>AI Decision Log:</h4>
-            <p>{aiLog}</p>
+      <div className="hud-container">
+        <div className="panel search-panel">
+          <div className="title">Pune Digital Twin</div>
+          <div className="subtitle">Exploring: {currentArea}</div>
+          <div className="search-container" ref={suggestionsRef}>
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Enter a destination..."
+              value={searchTerm}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              autoComplete="off"
+            />
+            <button className="go-button" onClick={handleGoClick} aria-label="Go">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 12L10 8L6 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="suggestions" role="listbox">
+                {suggestions.map((s, idx) => (
+                  <li
+                    key={s.place_id}
+                    role="option"
+                    aria-selected={idx === activeIndex}
+                    className={`suggestion ${idx === activeIndex ? 'active' : ''}`}
+                    onMouseDown={(e) => { e.preventDefault(); selectPlace(s); }}
+                  >
+                    {s.display_name}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
-      </header>
+
+        <div className={`lower-panels ${showSuggestions && suggestions.length > 0 ? 'shifted-down' : ''}`}>
+          <CarbonScorePanel />
+
+          <div className={`panel ai-analysis-panel ${isSelectAreaExpanded || isLogVisible ? 'expanded' : ''}`}>
+            <div className="analysis-buttons">
+              <button onClick={handleSelectAreaClick} className="select-area-button">
+                Select Area
+              </button>
+              <button
+                onClick={handleAnalysisButtonClick}
+                disabled={isLoadingAI || !analysisZone}
+                className="analyze-button"
+              >
+                {isLoadingAI ? 'Analyzing...' : 'Analyze & Optimize Area'}
+              </button>
+            </div>
+            
+            {isSelectAreaExpanded && (
+              <div className="draw-toolbar">
+                <button title="Draw Polygon" className="polygon-btn" onClick={() => setDrawMode('draw_polygon')}>
+                    <svg className="polygon-icon" viewBox="0 0 20 20" width="24" height="24">
+                        <path d="M10 3 L17 17 L3 17 Z" />
+                    </svg>
+                </button>
+
+                <div className={`clear-buttons-wrapper ${polygonCount > 1 ? 'split' : ''}`}>
+                    <button
+                        title="Clear All Polygons"
+                        onClick={clearAllShapes}
+                        className="clear-all-btn"
+                    >
+                        Clear All
+                    </button>
+                    <button
+                        title={polygonCount > 1 ? "Delete a Polygon" : "Delete Polygon"}
+                        onClick={polygonCount > 1 ? toggleDeleteMode : deleteSinglePolygon}
+                        className={`clear-btn ${isDeleteMode ? 'active-button' : ''}`}
+                    >
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                </div>
+              </div>
+            )}
+            
+            {isLogVisible && (
+               <div className="log-panel">
+                <h4>AI Decision Log:</h4>
+                <p>{aiLog}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="map-wrap">
-        <MapComponent 
-          setCurrentArea={setCurrentArea} 
-          onMapReady={setMap}
-          onMapClick={handleMapClick}
+        <Map
+          mapLib={maplibregl}
+          initialViewState={{
+            longitude: 73.8567,
+            latitude: 18.5204,
+            zoom: 15,
+            pitch: 60,
+            bearing: -20
+          }}
+          style={{ width: '100%', height: '100%' }}
+          mapStyle={`https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${MAPTILER_API_KEY}`}
+          onLoad={(evt) => onMapLoad(evt, setMap)}
+          onClick={onMapClick}
+          antialias
         />
       </div>
     </div>
