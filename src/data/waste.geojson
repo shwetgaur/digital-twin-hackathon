@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "waste",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "fid": 1, "id": "way/108093157", "name": "Bhairoba Nala Sewage Treatment Plant", "tons_per_year": 200.0, "ef_ch4": 62.0, "gwp_ch4": 28.0, "waste_kgco2eyr": 347200.0, "feature_type": "stp", "facility_type": "stp", "co2e_tpy": 347.2 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 73.900668, 18.5372034 ], [ 73.9011132, 18.5371627 ], [ 73.9013385, 18.537239 ], [ 73.9030015, 18.5373153 ], [ 73.9031463, 18.5375543 ], [ 73.903157100000016, 18.5379002 ], [ 73.90298, 18.5386173 ], [ 73.903141, 18.539075 ], [ 73.9027387, 18.5391337 ], [ 73.9016497, 18.539075 ], [ 73.900904, 18.5390903 ], [ 73.900668, 18.5372034 ] ] ] } }
+]
+}
