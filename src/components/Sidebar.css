@@ -1,0 +1,164 @@
+.sidebar {
+  width: 350px;
+  background-color: #1a1a1a;
+  color: #fff;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid #444;
+}
+
+.sidebar h1 {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.sidebar p {
+  font-size: 14px;
+  color: #aaa;
+  margin-top: 0;
+}
+
+.carbon-score {
+  margin: 30px 0;
+  text-align: center;
+}
+
+.carbon-score h2 {
+  font-size: 18px;
+  color: #ccc;
+  margin-bottom: 10px;
+}
+
+.score-value {
+  font-size: 36px;
+  font-weight: bold;
+  color: #4caf50;
+}
+
+.score-value span {
+  font-size: 14px;
+  font-weight: normal;
+  display: block;
+  color: #aaa;
+}
+
+.score-positive {
+  color: #4caf50;
+}
+
+.score-negative {
+  color: #f44336;
+}
+
+
+.simulations {
+  margin-bottom: 30px;
+}
+
+.simulations h2 {
+  font-size: 18px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+}
+
+.simulations button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.simulations button:hover {
+  background-color: #0056b3;
+}
+
+.simulations .ai-button {
+    background-color: #4caf50;
+}
+.simulations .ai-button:hover {
+    background-color: #45a049;
+}
+
+
+.legend {
+    margin-top: auto;
+}
+
+.legend h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.legend div {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border-radius: 4px;
+}
+.high-emission { background-color: #FF0000; }
+.medium-emission { background-color: #FFA500; }
+.low-emission { background-color: #00FF00; }
+
+
+.info-box {
+  margin-top: auto;
+  padding: 15px;
+  background-color: #2c2c2c;
+  border-radius: 5px;
+}
+
+.info-box h3 {
+  font-size: 16px;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.info-box p {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #ccc;
+}
+
+/* Add to existing Sidebar.css */
+.ai-status {
+  background-color: #2c2c2c;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+.ai-status div {
+  margin-bottom: 5px;
+}
+.ai-plan {
+  margin-top: 10px;
+  color: #a0e9ff;
+  font-style: italic;
+}
+.ai-button.running {
+  background-color: #f44336;
+}
+.ai-button.running:hover {
+  background-color: #d32f2f;
+}
+
+.legend-color.solar-building { background-color: #00BFFF; }
+.legend-color.bike-lane { border: 2px solid #9370DB; }

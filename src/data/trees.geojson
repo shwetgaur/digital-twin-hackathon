@@ -1,0 +1,14 @@
+{
+"type": "FeatureCollection",
+"name": "trees",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "fid": 1, "id": "node/5977481315", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9027119, 18.5452132 ] } },
+{ "type": "Feature", "properties": { "fid": 2, "id": "node/5977481316", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9025777, 18.5451776 ] } },
+{ "type": "Feature", "properties": { "fid": 3, "id": "node/5977481322", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9020268, 18.5443063 ] } },
+{ "type": "Feature", "properties": { "fid": 4, "id": "node/5977481323", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9011782, 18.544491 ] } },
+{ "type": "Feature", "properties": { "fid": 5, "id": "node/5977481324", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9008582, 18.5445174 ] } },
+{ "type": "Feature", "properties": { "fid": 6, "id": "node/5977481325", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9017346, 18.5442008 ] } },
+{ "type": "Feature", "properties": { "fid": 7, "id": "node/5977481326", "sink_kgco2yr_tree": 22.0, "co2e_tpy": -0.022, "feature_type": "tree" }, "geometry": { "type": "Point", "coordinates": [ 73.9018144, 18.5440305 ] } }
+]
+}
