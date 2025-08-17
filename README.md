@@ -4,8 +4,6 @@
 
 CarbonTwin AI is an interactive digital twin that uses an agentic AI powered by IBM watsonx to help urban planners make smarter, data-driven decisions to reduce a city's carbon footprint.
 
-### 🎥 [Link to Our 3-Minute Video Demonstration](https://www.youtube.com/watch?v=your_video_id)
-
 ***
 
 ## The Problem 🤔
